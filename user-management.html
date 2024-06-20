@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management</title>
+    <link rel="stylesheet" href="/src/styles.css">
+    <link href="src/tailwind.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="flex justify-center items-center min-h-screen relative">
+    <!-- Navigation and Header -->
+    <div class="auth-container">
+        <div class="auth-box">
+            <h1 class="text-2xl font-semibold mb-4 text-center">User Management</h1>
+            <!-- Table to display users -->
+            <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                <!-- Table header -->
+                <thead class="bg-gray-100 border-b border-gray-200">
+                <tr>
+                    <th class="py-3 px-6 text-left">User ID</th>
+                    <th class="py-3 px-6 text-left">Username</th>
+                    <th class="py-3 px-6 text-left">Email</th>
+                    <th class="py-3 px-6 text-left">Password</th>
+                    <th class="py-3 px-6 text-left">Actions</th>
+                </tr>
+                </thead>
+                <!-- Table body - dynamic content will go here -->
+                <tbody id="user-table-body">
+                <!-- JavaScript will populate this -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript to handle form submission and data fetching -->
+<script>
+    // Function to populate the user table and handle edit/delete actions
+    async function fetchUsers() {
+        try {
+            const response = await fetch('/api/users');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const users = await response.json();
+
+            const tableBody = document.getElementById('user-table-body');
+            tableBody.innerHTML = ''; // Clear previous content
+
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                row.id = `user-${user.userId}`;
+                row.classList.add('hover:bg-gray-100');
+                row.innerHTML = `
+                    <td class="py-3 px-6">${user.userId}</td>
+                    <td class="py-3 px-6">
+                        <span id="userName-${user.userId}" class="editable-field">${user.userName}</span>
+                        <input id="editUserName-${user.userId}" type="text" class="hidden edit-field w-full px-4 py-2 rounded-full border border-gray-300 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400" value="${user.userName}">
+                    </td>
+                    <td class="py-3 px-6">
+                        <span id="userEmail-${user.userId}" class="editable-field">${user.userEmail}</span>
+                        <input id="editUserEmail-${user.userId}" type="email" class="hidden edit-field w-full px-4 py-2 rounded-full border border-gray-300 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400" value="${user.userEmail}">
+                    </td>
+                    <td class="py-3 px-6">
+                        <span id="userPassword-${user.userId}" class="editable-field">*******</span>
+                        <input id="editUserPassword-${user.userId}" type="password" class="hidden edit-field w-full px-4 py-2 rounded-full border border-gray-300 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400" value="">
+                    </td>
+                    <td class="py-3 px-6">
+                        <button id="editBtn-${user.userId}" class="text-blue-600 hover:text-blue-900 mr-2" onclick="toggleEdit(${user.userId})">Edit</button>
+                        <button id="saveBtn-${user.userId}" class="text-green-600 hover:text-green-900 hidden" onclick="saveUser(${user.userId})">Save</button>
+                        <button id="cancelBtn-${user.userId}" class="text-gray-600 hover:text-gray-900 hidden" onclick="cancelEdit(${user.userId})">Cancel</button>
+                        <button class="text-red-600 hover:text-red-900" onclick="deleteUser(${user.userId})">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    // Function to toggle edit mode for a user
+    function toggleEdit(userId) {
+        // Hide edit buttons and show save/cancel buttons
+        document.getElementById(`editBtn-${userId}`).classList.add('hidden');
+        document.getElementById(`saveBtn-${userId}`).classList.remove('hidden');
+        document.getElementById(`cancelBtn-${userId}`).classList.remove('hidden');
+
+        // Hide read-only fields and show edit fields
+        document.getElementById(`userName-${userId}`).classList.add('hidden');
+        document.getElementById(`editUserName-${userId}`).classList.remove('hidden');
+        document.getElementById(`userEmail-${userId}`).classList.add('hidden');
+        document.getElementById(`editUserEmail-${userId}`).classList.remove('hidden');
+        document.getElementById(`userPassword-${userId}`).classList.add('hidden');
+        document.getElementById(`editUserPassword-${userId}`).classList.remove('hidden');
+    }
+
+    // Function to cancel editing for a user
+    function cancelEdit(userId) {
+        // Hide save/cancel buttons and show edit button
+        document.getElementById(`editBtn-${userId}`).classList.remove('hidden');
+        document.getElementById(`saveBtn-${userId}`).classList.add('hidden');
+        document.getElementById(`cancelBtn-${userId}`).classList.add('hidden');
+
+        // Hide edit fields and show read-only fields
+        document.getElementById(`editUserName-${userId}`).classList.add('hidden');
+        document.getElementById(`userName-${userId}`).classList.remove('hidden');
+        document.getElementById(`editUserEmail-${userId}`).classList.add('hidden');
+        document.getElementById(`userEmail-${userId}`).classList.remove('hidden');
+        document.getElementById(`editUserPassword-${userId}`).classList.add('hidden');
+        document.getElementById(`userPassword-${userId}`).classList.remove('hidden');
+    }
+
+    // Function to save edited user details
+    async function saveUser(userId) {
+        const userName = document.getElementById(`editUserName-${userId}`).value;
+        const userEmail = document.getElementById(`editUserEmail-${userId}`).value;
+        const userPassword = document.getElementById(`editUserPassword-${userId}`).value;
+
+        const userData = {
+            userId: userId,
+            userName: userName,
+            userEmail: userEmail,
+            userPassword: userPassword
+        };
+
+        try {
+            const response = await fetch(`/api/user/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(userData)
+            });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            // After saving, cancel edit mode and refresh user table
+            cancelEdit(userId);
+            fetchUsers();
+
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    // Function to delete a user
+    async function deleteUser(userId) {
+        try {
+            const response = await fetch(`/api/user/${userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            // After deletion, refresh the user table
+            fetchUsers();
+
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    // Fetch users when the page loads
+    fetchUsers();
+</script>
+</body>
+</html>

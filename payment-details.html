@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Details</title>
+    <link rel="stylesheet" href="/src/styles.css">
+    <link href="src/tailwind.min.css" rel="stylesheet">
+    <style>
+        .edit-field {
+            display: none;
+        }
+        .hover-bg {
+            transition: background-color 0.3s ease;
+        }
+        .hover-bg:hover {
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+<div class="flex justify-center items-center min-h-screen">
+    <!-- Container for Payment Details -->
+    <div class="w-full max-w-screen-lg bg-white rounded-lg shadow-lg p-8">
+        <h1 class="text-3xl font-semibold mb-8 text-center">Payment Details</h1>
+        <!-- Table to display payment details -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                <!-- Table header -->
+                <thead class="bg-gray-100 border-b border-gray-200">
+                <tr>
+                    <th class="py-3 px-6 text-left">Payment ID</th>
+                    <th class="py-3 px-6 text-left">User ID</th>
+                    <th class="py-3 px-6 text-left">Payment Type</th>
+                    <th class="py-3 px-6 text-left">Payment Date</th>
+                    <th class="py-3 px-6 text-left">Actions</th>
+                </tr>
+                </thead>
+                <!-- Table body - dynamic content will go here -->
+                <tbody id="payment-table-body">
+                <!-- JavaScript will populate this -->
+                </tbody>
+            </table>
+        </div>
+        <!-- Form for adding/updating payment details -->
+        <div class="mt-8">
+            <form id="payment-form" class="space-y-4">
+                <div class="flex flex-wrap -mx-2">
+                    <div class="w-full md:w-1/2 px-2 mb-4">
+                        <label for="paymentId" class="block text-sm font-medium text-gray-700">Payment ID</label>
+                        <input type="text" id="paymentId" name="paymentId" placeholder="Payment ID" required class="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400" disabled>
+                    </div>
+                    <div class="w-full md:w-1/2 px-2 mb-4">
+                        <label for="userId" class="block text-sm font-medium text-gray-700">User ID</label>
+                        <input type="text" id="userId" name="userId" placeholder="User ID" required class="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400" disabled>
+                    </div>
+                    <div class="w-full md:w-1/2 px-2 mb-4">
+                        <label for="paymentType" class="block text-sm font-medium text-gray-700">Payment Type</label>
+                        <input type="text" id="paymentType" name="paymentType" placeholder="Payment Type" required class="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    </div>
+                    <div class="w-full md:w-1/2 px-2 mb-4">
+                        <label for="paymentDate" class="block text-sm font-medium text-gray-700">Payment Date</label>
+                        <input type="date" id="paymentDate" name="paymentDate" placeholder="Payment Date" required class="w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="btn px-6 py-3 rounded-full bg-black text-white hover:bg-blue-600 transition-colors duration-300">Save Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript to handle form submission and data fetching -->
+<script>
+    document.getElementById('payment-form').addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const response = await fetch('/api/payment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}' // Ensure CSRF token is included
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            const result = await response.json();
+            console.log(result);
+
+            // Clear form fields and refresh payment table
+            this.reset();
+            fetchPayments();
+
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    });
+
+    // Function to fetch and display payments (called on page load or after CRUD operations)
+    async function fetchPayments() {
+        try {
+            const response = await fetch('/api/payments');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const payments = await response.json();
+
+            const tableBody = document.getElementById('payment-table-body');
+            tableBody.innerHTML = ''; // Clear previous content
+
+            payments.forEach(payment => {
+                const row = document.createElement('tr');
+                row.id = `payment-${payment.paymentId}`;
+                row.classList.add('hover-bg');
+                row.innerHTML = `
+                    <td class="py-3 px-6">${payment.paymentId}</td>
+                    <td class="py-3 px-6">${payment.userId}</td>
+                    <td class="py-3 px-6">${payment.paymentType}</td>
+                    <td class="py-3 px-6">${new Date(payment.paymentDate).toLocaleDateString()}</td>
+                    <td class="py-3 px-6">
+                        <button class="text-blue-600 hover:text-blue-900 mr-2" onclick="editPayment(${payment.paymentId})">Edit</button>
+                        <button class="text-red-600 hover:text-red-900" onclick="deletePayment(${payment.paymentId})">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    // Function to edit a payment (populate form with payment details)
+    function editPayment(paymentId) {
+        const paymentRow = document.getElementById(`payment-${paymentId}`);
+        const paymentType = paymentRow.childNodes[2].textContent.trim();
+        const paymentDate = paymentRow.childNodes[3].textContent.trim();
+
+        // Populate form fields for editing
+        document.getElementById('paymentId').value = paymentId;
+        document.getElementById('paymentType').value = paymentType;
+        document.getElementById('paymentDate').value = paymentDate;
+
+        // Enable editing only for payment type and payment date fields
+        document.getElementById('paymentType').disabled = false;
+        document.getElementById('paymentDate').disabled = false;
+
+        // Scroll to top of form for better UX
+        window.scrollTo(0, 0);
+    }
+
+    // Function to delete a payment
+    async function deletePayment(paymentId) {
+        try {
+            const response = await fetch(`/api/payment/${paymentId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            // After deletion, refresh the payment table
+            fetchPayments();
+
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    // Fetch payments when the page loads
+    fetchPayments();
+</script>
+</body>
+</html>
